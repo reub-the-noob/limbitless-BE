@@ -43,6 +43,7 @@ from app.models import (
     InvolvementStatus,
     LimbInvolvement,
     LimbLossLevel,
+    MapFace,
     MedicalAidMembership,
     MilestoneStatus,
     Notification,
@@ -83,8 +84,11 @@ class DeviceSpec:
     strap_configuration: str | None = None
     padding_liner: str | None = None
     # Precise body-map position (viewBox fractions); both or neither.
+    # ``map_face`` defaults to anterior when a position is set (mirrors
+    # crud._apply_map_face_rule); set it only for a posterior placement.
     map_x: float | None = None
     map_y: float | None = None
+    map_face: MapFace | None = None
 
 
 @dataclass(frozen=True)
@@ -492,7 +496,8 @@ PATIENTS: list[PatientSpec] = [
                     strap_configuration="Anterior overlapping panels, 2 straps",
                     padding_liner="Foam-lined, moisture-wicking",
                     mount_location="Thoracolumbar",
-                    map_x=0.5, map_y=0.34,  # mid-torso / lumbar
+                    # thoracolumbar junction on the *back* of the figure
+                    map_x=0.5, map_y=0.34, map_face=MapFace.posterior,
                 ),
                 notes="Lumbar support for transfers. No amputation.",
             ),
@@ -839,6 +844,10 @@ def seed_clinical(
                     padding_liner=d.padding_liner,
                     map_x=d.map_x,
                     map_y=d.map_y,
+                    map_face=(
+                        d.map_face
+                        or (MapFace.anterior if d.map_x is not None else None)
+                    ),
                 )
                 db.add(device)
                 device_objs.append(device)
