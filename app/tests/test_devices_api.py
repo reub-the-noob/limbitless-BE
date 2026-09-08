@@ -38,7 +38,7 @@ def make_involvement(
         "kind": "amputation",
         "region": "lower_limb_left",
         "level": "transtibial",
-        "cause": "trauma",
+        "causes": ["trauma"],
     }
     body.update(overrides)
     resp = client.post(

@@ -38,7 +38,7 @@ def make_device(client, world: World, patient_id: int) -> dict:
             "kind": "amputation",
             "region": "lower_limb_left",
             "level": "transtibial",
-            "cause": "trauma",
+            "causes": ["trauma"],
         },
         headers=auth(world.clinician_a),
     )

@@ -3,7 +3,14 @@
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 from app.models import (
     AppointmentStatus,
@@ -184,24 +191,38 @@ class PortalPromCreate(BaseModel):
 # --- limb involvements -------------------------------------------------
 
 
+def _dedupe_causes(v: list[CauseOfLimbLoss] | None) -> list[CauseOfLimbLoss]:
+    """Drop duplicates, keep first-seen order; ``None`` → ``[]``."""
+    return list(dict.fromkeys(v or []))
+
+
 class InvolvementCreate(BaseModel):
     kind: InvolvementKind
     region: BodyRegion
     level: LimbLossLevel | None = None
-    cause: CauseOfLimbLoss | None = None
+    causes: list[CauseOfLimbLoss] = Field(default_factory=list)
     onset_date: date | None = None
     status: InvolvementStatus = InvolvementStatus.active
     notes: str | None = None
+
+    _clean_causes = field_validator("causes")(_dedupe_causes)
 
 
 class InvolvementUpdate(BaseModel):
     kind: InvolvementKind | None = None
     region: BodyRegion | None = None
     level: LimbLossLevel | None = None
-    cause: CauseOfLimbLoss | None = None
+    causes: list[CauseOfLimbLoss] | None = None
     onset_date: date | None = None
     status: InvolvementStatus | None = None
     notes: str | None = None
+
+    @field_validator("causes")
+    @classmethod
+    def _clean_causes(
+        cls, v: list[CauseOfLimbLoss] | None
+    ) -> list[CauseOfLimbLoss] | None:
+        return None if v is None else _dedupe_causes(v)
 
 
 class InvolvementRead(BaseModel):
@@ -212,7 +233,7 @@ class InvolvementRead(BaseModel):
     kind: InvolvementKind
     region: BodyRegion
     level: LimbLossLevel | None
-    cause: CauseOfLimbLoss | None
+    causes: list[CauseOfLimbLoss]
     onset_date: date | None
     status: InvolvementStatus
     notes: str | None

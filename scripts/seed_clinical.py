@@ -96,7 +96,7 @@ class InvolvementSpec:
     kind: InvolvementKind
     region: BodyRegion
     level: LimbLossLevel | None = None
-    cause: CauseOfLimbLoss | None = None
+    causes: tuple[CauseOfLimbLoss, ...] = ()
     notes: str | None = None
     devices: tuple[DeviceSpec, ...] = ()
 
@@ -167,12 +167,14 @@ class PatientSpec:
 def amputation(
     region: BodyRegion,
     level: LimbLossLevel,
-    cause: CauseOfLimbLoss,
+    causes: CauseOfLimbLoss | tuple[CauseOfLimbLoss, ...],
     *devices: DeviceSpec,
     notes: str | None = None,
 ) -> InvolvementSpec:
+    if isinstance(causes, CauseOfLimbLoss):
+        causes = (causes,)
     return InvolvementSpec(
-        InvolvementKind.amputation, region, level, cause, notes, devices
+        InvolvementKind.amputation, region, level, causes, notes, devices
     )
 
 
@@ -180,7 +182,7 @@ def orthotic(
     region: BodyRegion, *devices: DeviceSpec, notes: str | None = None
 ) -> InvolvementSpec:
     return InvolvementSpec(
-        InvolvementKind.orthotic_need, region, None, None, notes, devices
+        InvolvementKind.orthotic_need, region, None, (), notes, devices
     )
 
 
@@ -242,7 +244,8 @@ PATIENTS: list[PatientSpec] = [
         CarePathway.lower_limb, 64, 3, 4,
         involvements=(
             amputation(
-                LL_RIGHT, LV.transtibial, CL.dysvascular,
+                # diabetic foot: peripheral vascular disease + infection
+                LL_RIGHT, LV.transtibial, (CL.dysvascular, CL.infection),
                 dev(DT.body_powered, DV.active, "Blatchford", "Elan"),
             ),
         ),
@@ -302,7 +305,7 @@ PATIENTS: list[PatientSpec] = [
         involvements=(
             InvolvementSpec(
                 InvolvementKind.congenital_absence, UL_LEFT, LV.transradial,
-                None, "Congenital transradial limb difference.",
+                (CL.congenital,), "Congenital transradial limb difference.",
                 (dev(DT.passive_cosmetic, DV.planned, "Steeper", "Realistic Hand"),),
             ),
         ),
@@ -822,7 +825,7 @@ def seed_clinical(
                 kind=inv.kind,
                 region=inv.region,
                 level=inv.level,
-                cause=inv.cause,
+                causes=[c.value for c in inv.causes],
                 onset_date=start,
                 status=InvolvementStatus.active,
                 notes=inv.notes,
