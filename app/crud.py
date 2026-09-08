@@ -1762,8 +1762,10 @@ def dispatch_due_emails(
     5.6). Idempotent: a successful send stamps ``emailed_at``; a send
     that raises is logged and left unstamped so the next pass retries it.
 
-    Driven by an external scheduler (see the ``/notifications/dispatch
-    -due`` endpoint) - there is no in-process worker.
+    Driven by :func:`run_maintenance` - via the token-gated
+    ``/notifications/dispatch-due`` endpoint, the
+    ``scripts.run_maintenance`` one-shot, or the optional in-process
+    scheduler (:mod:`app.scheduler`).
     """
     from app import email as email_sender  # local import: optional feature
     from app import notifications as notify_mod
@@ -1803,3 +1805,24 @@ def dispatch_due_emails(
 
     db.commit()
     return {"sent": sent, "failed": failed, "skipped": skipped}
+
+
+def run_maintenance(
+    db: Session, *, grace_days: int, max_age_days: int
+) -> dict[str, int]:
+    """One notification maintenance tick (requirements Section 5.6):
+    raise ``milestone_due`` / ``milestone_overdue`` notifications for
+    slipped milestones, then send email for everything now due (the just
+    -raised rows included). The single entry point shared by the
+    token-gated ``POST /notifications/dispatch-due`` endpoint, the
+    ``scripts.run_maintenance`` one-shot, and the in-process scheduler
+    (:mod:`app.scheduler`)."""
+    milestones = scan_milestone_notifications(db, grace_days=grace_days)
+    emails = dispatch_due_emails(db, max_age_days=max_age_days)
+    return {
+        "milestones_due": milestones["due"],
+        "milestones_overdue": milestones["overdue"],
+        "emails_sent": emails["sent"],
+        "emails_failed": emails["failed"],
+        "emails_skipped": emails["skipped"],
+    }
