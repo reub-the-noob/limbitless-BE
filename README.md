@@ -1,12 +1,5 @@
 # Welcome to Limb-itless Project
 
-## Team members
-
-- Siphamandla Malaza
-- Jessica Harrison
-- Reuben Ellis
-- Nkanyiso Shabane
-
 ## Branching Strategy
 
 This project follows Trunk-Based Development.
