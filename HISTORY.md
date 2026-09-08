@@ -482,3 +482,25 @@ existing device POST / PATCH and the `/patients/{id}/devices` overview —
 no new endpoint. Seed: Refilwe's TLSO moves to the posterior face (her
 AFO stays anterior, so the front/back toggle has one marker on each).
 369 BE tests (5 new), `alembic check` clean, migration round-trips.
+
+---
+
+## Session revocation
+
+### R-48 — "sign out everywhere"
+Refresh (and access) tokens were stateless with no way to invalidate a
+lost or leaked one — flagged since R-05. Added `User.token_version`
+(`Integer`, `default 0` / `server_default '0'`; migration
+`c4f7a9e2b610`). Every access and refresh token now carries a `tv`
+claim = the user's `token_version` at issue time
+(`security.create_access_token` / `create_refresh_token` gained a
+`token_version=` kwarg, threaded through `auth._tokens_for`).
+`deps.get_current_user` and the `/auth/refresh` handler reject a token
+whose `tv` no longer matches the user's current value. New
+`POST /auth/logout-all` (any authenticated user) bumps
+`user.token_version`, so every token issued so far — the one that made
+the call included — stops validating and the client must log in again.
+New `schemas.MessageResponse {detail}`. 373 BE tests (4 new in
+`test_auth.py` "session revocation" block), `alembic check` clean,
+migration round-trips, API live-smoked (fresh token works → logout-all →
+same token 401 + its refresh token 401 → a new login works).

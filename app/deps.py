@@ -39,6 +39,9 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise _CREDENTIALS_ERROR
+    # A token minted before the last "sign out everywhere" is stale.
+    if (payload.get("tv") or 0) != (user.token_version or 0):
+        raise _CREDENTIALS_ERROR
     return user
 
 

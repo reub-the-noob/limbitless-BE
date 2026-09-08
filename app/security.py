@@ -54,20 +54,27 @@ def create_access_token(
     role: str,
     practice_id: int | None,
     site_id: int | None,
+    token_version: int = 0,
 ) -> str:
     return _create_token(
         subject,
         ACCESS_TOKEN_TYPE,
         timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES),
-        {"role": role, "practice_id": practice_id, "site_id": site_id},
+        {
+            "role": role,
+            "practice_id": practice_id,
+            "site_id": site_id,
+            "tv": token_version,
+        },
     )
 
 
-def create_refresh_token(subject: Any) -> str:
+def create_refresh_token(subject: Any, *, token_version: int = 0) -> str:
     return _create_token(
         subject,
         REFRESH_TOKEN_TYPE,
         timedelta(days=config.REFRESH_TOKEN_EXPIRE_DAYS),
+        {"tv": token_version},
     )
 
 

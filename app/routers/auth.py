@@ -29,8 +29,11 @@ def _tokens_for(user: User) -> schemas.Token:
             role=user.role.value,
             practice_id=user.practice_id,
             site_id=user.site_id,
+            token_version=user.token_version,
         ),
-        refresh_token=security.create_refresh_token(user.id),
+        refresh_token=security.create_refresh_token(
+            user.id, token_version=user.token_version
+        ),
     )
 
 
@@ -93,7 +96,22 @@ def refresh(
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise _INVALID_REFRESH
+    if (payload.get("tv") or 0) != (user.token_version or 0):
+        raise _INVALID_REFRESH
     return _tokens_for(user)
+
+
+@router.post("/logout-all", response_model=schemas.MessageResponse)
+def logout_all(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> schemas.MessageResponse:
+    """Sign out of every session: bump ``token_version`` so every access
+    and refresh token issued so far (this one included) stops validating.
+    The client must log in again."""
+    user.token_version += 1
+    db.commit()
+    return schemas.MessageResponse(detail="Signed out of all sessions")
 
 
 @router.get("/me", response_model=schemas.UserRead)
