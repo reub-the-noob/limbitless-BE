@@ -29,57 +29,66 @@ To maintain stability, all changes merged into main must pass automated checks a
   `alembic check` (fails on model/migration drift), then `downgrade base`
   and `upgrade head` to prove the migrations are reversible
 
-## Running Application
-1) Ensure you have installed and activated the virtual environment: 
+## Running the application
 
-    In main directory run commands: 
-   - python -m venv venv
+> **Locked-down Windows machines** (AppLocker / endpoint protection) block
+> the `.exe` shims a fresh virtual environment writes into `venv\Scripts\`
+> — `pip.exe`, `alembic.exe`, `uvicorn.exe`, etc. fail with
+> `Program 'pip.exe' failed to run: Access is denied`. Run each tool as a
+> module through the allowed `python.exe` instead. Every command below is
+> written that way (`python -m …`); the plain `pip` / `alembic` /
+> `fastapi` forms work anywhere the shims aren't blocked.
+
+All commands are run from the project root, inside the activated venv.
+
+1) **Create and activate a virtual environment:**
+   - `python -m venv venv`
    - macOS/Linux: `source venv/bin/activate`
    - Windows (Command Prompt): `venv\Scripts\activate`
    - Windows (PowerShell): `venv\Scripts\Activate.ps1`
 
-2) Install the requirements found in requirements.txt
+2) **Install the dependencies:**
+   - `python -m pip install -r requirements.txt`
+   - If this reports `No module named pip`, bootstrap it first with
+     `python -m ensurepip --upgrade`, then re-run.
 
-    In main directory run command:
-   - pip install -r requirements.txt
+3) **Configure the database:**
 
-3) Configure the database:
-
-    Development uses a local Postgres database. Create the role and database
-    once (defaults match `.env.example`):
+   Development uses a local Postgres database. Create the role and database
+   once (defaults match `.env.example`):
    - `createuser limbitless --pwprompt` (enter `limbitless`, or your own password)
    - `createdb limbitless --owner limbitless`
 
-    If your credentials differ from the defaults, set `DATABASE_URL` for the
-    shell (see `.env.example` for the format):
+   If your credentials differ from the defaults, set `DATABASE_URL` for the
+   shell (see `.env.example` for the format):
    - macOS/Linux: `export DATABASE_URL=postgresql+psycopg://user:pass@localhost:5432/limbitless`
    - Windows (PowerShell): `$env:DATABASE_URL = "postgresql+psycopg://user:pass@localhost:5432/limbitless"`
 
-    With the defaults in place, `DATABASE_URL` can be left unset.
+   With the defaults in place, `DATABASE_URL` can be left unset.
 
-4) Apply database migrations:
+4) **Apply database migrations:**
+   - `python -m alembic upgrade head`
 
-    In main directory run command:
-   - `alembic upgrade head`
+   Alembic reads the same `DATABASE_URL`. Create a new migration after
+   changing a model with
+   `python -m alembic revision --autogenerate -m "short description"`.
 
-    Alembic reads the same `DATABASE_URL`. Create a new migration after changing
-    a model with `alembic revision --autogenerate -m "short description"`.
-
-5) (optional) Load sample data for local development:
-
-    In main directory run command:
-   - `python -m scripts.seed` — two practices (one multi-site) and one user
-     per role; safe to re-run
+5) **(optional) Load sample data for local development:**
+   - `python -m scripts.seed` — practices, sites and one user per role,
+     plus the clinical sample (patients, involvements, devices, milestones,
+     PROMs, notes); safe to re-run
    - `python -m scripts.seed --reset` — wipe the seeded tables first
 
-    All seeded users share the password `Password123!`. The script prints the
-    full list of accounts on completion.
+   All seeded users share the password `Password123!`. The script prints
+   the full list of accounts on completion.
 
-6) Start application:
+6) **Start the server:**
+   - Dev (auto-reload): `python -m uvicorn app.main:app --reload`
+   - Production: `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
-    In main directory run command:
-    - fastapi run (for production server)
-    - fastapi dev (for dev server)
+   On Windows, if you hit a `charmap` encoding crash on startup, prefix the
+   command with `set PYTHONIOENCODING=utf-8 &&` (cmd) or
+   `$env:PYTHONIOENCODING = "utf-8";` (PowerShell).
 
 ## Access API
 1) To access the interactive API documentation, 
