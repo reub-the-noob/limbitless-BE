@@ -504,3 +504,31 @@ New `schemas.MessageResponse {detail}`. 373 BE tests (4 new in
 `test_auth.py` "session revocation" block), `alembic check` clean,
 migration round-trips, API live-smoked (fresh token works → logout-all →
 same token 401 + its refresh token 401 → a new login works).
+
+---
+
+## Multifactorial limb-loss cause
+
+### R-49 — `LimbInvolvement.cause` → `causes` (list)
+Limb loss is often multifactorial (e.g. a diabetic foot: peripheral
+vascular disease *and* infection). The single `cause` enum column
+becomes **`causes`**, a JSON list of the same `CauseOfLimbLoss` values
+(`[]` when none). JSON rather than a PG enum array so the one column
+also works under SQLite in the test suite. Migration `a5c1e8f4d20b`:
+add `causes` (`JSON`, `server_default '[]'`), backfill
+`json_build_array(cause::text)` for the non-null rows, drop `cause`;
+downgrade re-adds `cause` and keeps `causes ->> 0`. The
+`cause_of_limb_loss` PG enum type is kept (still used by the schema
+layer). Schemas: `causes: list[CauseOfLimbLoss]` on Create / Update /
+Read, with a `field_validator` that de-dupes (first-seen order);
+`InvolvementUpdate.causes` stays `None` when omitted so a PATCH can
+target other fields, `[]` clears. `crud._cause_values` maps enum members
+→ plain strings for the JSON column in `create_involvement` /
+`update_involvement`. Per-patient report + `InvolvementDetail` pick the
+list up automatically (they spread `InvolvementRead.model_dump()`). Seed:
+Lerato Dlamini's transtibial amputation is now `dysvascular` +
+`infection`; the `amputation()` / `orthotic()` helpers take a
+cause tuple (a bare enum is still accepted). 374 BE tests (1 new
+multi-cause round-trip test; `"cause"` fixtures across 4 test files
+updated to `"causes"`), `alembic check` clean, migration round-trips,
+full-stack live-smoked.

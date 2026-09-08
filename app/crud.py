@@ -389,10 +389,18 @@ def list_involvements(
     ).all()
 
 
+def _cause_values(causes) -> list[str]:
+    """Enum members (or already-strings) -> the plain values stored in
+    the ``causes`` JSON column."""
+    return [getattr(c, "value", c) for c in causes]
+
+
 def create_involvement(
     db: Session, *, patient_id: int, data: schemas.InvolvementCreate
 ) -> LimbInvolvement:
-    involvement = LimbInvolvement(**data.model_dump(), patient_id=patient_id)
+    payload = data.model_dump()
+    payload["causes"] = _cause_values(payload["causes"])
+    involvement = LimbInvolvement(**payload, patient_id=patient_id)
     db.add(involvement)
     db.flush()
     db.refresh(involvement)
@@ -403,6 +411,8 @@ def update_involvement(
     db: Session, involvement: LimbInvolvement, data: schemas.InvolvementUpdate
 ) -> LimbInvolvement:
     for field, value in data.model_dump(exclude_unset=True).items():
+        if field == "causes":
+            value = _cause_values(value)
         setattr(involvement, field, value)
     db.flush()
     db.refresh(involvement)

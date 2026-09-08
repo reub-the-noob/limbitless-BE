@@ -65,7 +65,7 @@ def test_orthotics_patient_has_no_amputation_and_orthotic_devices(
     involvements = _involvements(db, refilwe.id)
     assert involvements
     assert all(i.kind is InvolvementKind.orthotic_need for i in involvements)
-    assert all(i.level is None and i.cause is None for i in involvements)
+    assert all(i.level is None and i.causes == [] for i in involvements)
     assert any(i.region is BodyRegion.spine for i in involvements)
 
     devices = _devices(db, refilwe.id)

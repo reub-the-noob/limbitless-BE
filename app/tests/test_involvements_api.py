@@ -34,7 +34,7 @@ def involvement_body(**overrides) -> dict:
         "kind": "amputation",
         "region": "lower_limb_left",
         "level": "transtibial",
-        "cause": "trauma",
+        "causes": ["trauma"],
     }
     body.update(overrides)
     return body
@@ -83,7 +83,44 @@ def test_orthotic_involvement_needs_no_level_or_cause(client, world: World) -> N
     )
     assert resp.status_code == 201
     body = resp.json()
-    assert body["level"] is None and body["cause"] is None
+    assert body["level"] is None and body["causes"] == []
+
+
+def test_involvement_records_multiple_causes(client, world: World) -> None:
+    patient = make_patient(client, world)
+
+    created = client.post(
+        f"/patients/{patient['id']}/involvements",
+        json=involvement_body(causes=["dysvascular", "infection"]),
+        headers=auth(world.clinician_a),
+    )
+    assert created.status_code == 201
+    iid = created.json()["id"]
+    assert created.json()["causes"] == ["dysvascular", "infection"]
+
+    # persists on the read path
+    got = client.get(
+        f"/patients/{patient['id']}/involvements/{iid}",
+        headers=auth(world.clinician_a),
+    ).json()
+    assert got["causes"] == ["dysvascular", "infection"]
+
+    # PATCH replaces the whole set; duplicates are collapsed
+    patched = client.patch(
+        f"/patients/{patient['id']}/involvements/{iid}",
+        json={"causes": ["trauma", "trauma", "infection"]},
+        headers=auth(world.clinician_a),
+    )
+    assert patched.status_code == 200
+    assert patched.json()["causes"] == ["trauma", "infection"]
+
+    # an empty list clears them
+    cleared = client.patch(
+        f"/patients/{patient['id']}/involvements/{iid}",
+        json={"causes": []},
+        headers=auth(world.clinician_a),
+    )
+    assert cleared.json()["causes"] == []
 
 
 def test_list_returns_every_involvement(client, world: World) -> None:

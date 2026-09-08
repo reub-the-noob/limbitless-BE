@@ -349,9 +349,12 @@ class LimbInvolvement(TimestampMixin, Base):
     PROMs / notes, hang off an involvement rather than the patient, so
     recovery and the body-map view are limb-specific.
 
-    ``level`` (an amputation level) and ``cause`` apply to amputations and
-    congenital absence; for ``orthotic_need`` they are null and ``notes``
-    carries the presenting problem (foot drop, scoliosis, …).
+    ``level`` (an amputation level) and ``causes`` apply to amputations
+    and congenital absence; for ``orthotic_need`` ``level`` is null and
+    ``causes`` empty, and ``notes`` carries the presenting problem (foot
+    drop, scoliosis, …). ``causes`` is a list because limb loss is often
+    multifactorial (e.g. diabetic *and* dysvascular); it holds
+    :class:`CauseOfLimbLoss` values, ``[]`` when none is recorded.
     """
 
     __tablename__ = "limb_involvements"
@@ -369,8 +372,11 @@ class LimbInvolvement(TimestampMixin, Base):
     level: Mapped[LimbLossLevel | None] = mapped_column(
         Enum(LimbLossLevel, name="limb_loss_level", create_type=False)
     )
-    cause: Mapped[CauseOfLimbLoss | None] = mapped_column(
-        Enum(CauseOfLimbLoss, name="cause_of_limb_loss", create_type=False)
+    # A JSON list of CauseOfLimbLoss values (limb loss is often
+    # multifactorial); [] when none is recorded. JSON rather than a PG
+    # enum array so the same column works under SQLite in the test suite.
+    causes: Mapped[list[str]] = mapped_column(
+        JSON, default=list, server_default=text("'[]'")
     )
     onset_date: Mapped[date | None] = mapped_column(Date)
     status: Mapped[InvolvementStatus] = mapped_column(
