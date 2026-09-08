@@ -1,0 +1,7 @@
+fastapi[standard]
+sqlalchemy
+alembic
+psycopg[binary]
+pyjwt
+bcrypt
+pytest
