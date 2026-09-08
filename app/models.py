@@ -195,6 +195,12 @@ class User(TimestampMixin, Base):
         ForeignKey("sites.id", ondelete="SET NULL"), index=True
     )
     scheme_name: Mapped[str | None] = mapped_column(String(200))
+    # Bumped by ``POST /auth/logout-all`` to invalidate every access /
+    # refresh token issued before then: each token carries the ``tv``
+    # value current at issue, and auth rejects a mismatch.
+    token_version: Mapped[int] = mapped_column(
+        default=0, server_default=text("0")
+    )
 
     practice: Mapped["Practice | None"] = relationship()
     site: Mapped["Site | None"] = relationship()

@@ -103,6 +103,58 @@ def test_refresh_rejects_an_access_token(client, user: User) -> None:
     assert resp.status_code == 401
 
 
+# --- session revocation ("sign out everywhere") ----------------------
+
+
+def test_login_token_carries_the_token_version(client, user: User) -> None:
+    from app import security
+
+    tokens = _login(client, user.email, PASSWORD).json()
+    access = security.decode_token(
+        tokens["access_token"], expected_type=security.ACCESS_TOKEN_TYPE
+    )
+    refresh = security.decode_token(
+        tokens["refresh_token"], expected_type=security.REFRESH_TOKEN_TYPE
+    )
+    assert access["tv"] == 0 and refresh["tv"] == 0
+
+
+def test_logout_all_invalidates_every_existing_token(client, user: User) -> None:
+    tokens = _login(client, user.email, PASSWORD).json()
+    bearer = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    assert client.post("/auth/logout-all", headers=bearer).status_code == 200
+
+    # the access token that made the call no longer validates
+    assert client.get("/auth/me", headers=bearer).status_code == 401
+    # nor does the refresh token issued alongside it
+    assert (
+        client.post(
+            "/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
+        ).status_code
+        == 401
+    )
+
+
+def test_logout_all_requires_authentication(client, user: User) -> None:
+    assert client.post("/auth/logout-all").status_code == 401
+
+
+def test_a_fresh_login_after_logout_all_works(client, user: User) -> None:
+    first = _login(client, user.email, PASSWORD).json()
+    client.post(
+        "/auth/logout-all",
+        headers={"Authorization": f"Bearer {first['access_token']}"},
+    )
+
+    second = _login(client, user.email, PASSWORD).json()
+    me = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {second['access_token']}"},
+    )
+    assert me.status_code == 200
+
+
 # --- self-service patient registration (Section 5.11) -------------------
 
 
