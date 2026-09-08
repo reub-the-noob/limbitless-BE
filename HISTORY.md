@@ -461,3 +461,24 @@ record the login isn't linked to. New `GET /portal/records`. The
 removed (claiming another is the point); staff `link-user` `409`s only
 when the record is on a *different* login. Seed: a second record for the
 main portal login at another practice.
+
+---
+
+## Body-map v2 — posterior view
+
+### R-47 — `Device.map_face`
+`map_x` / `map_y` only made sense on one (front) figure. A new
+`MapFace` enum column (`anterior` / `posterior`) says which face those
+fractions belong to, so a spinal / posterior device can be placed on a
+back view. Migration `b8d2f1c4a933` (pre-create the PG enum, then a
+`create_type=False` handle for `add_column`). Nullable, and kept
+consistent with the position by `crud._apply_map_face_rule`, called
+from `create_device` / `update_device`: a position set without a face
+defaults to `anterior`, and clearing the position (`map_x` / `map_y`
+→ NULL) forces `map_face` back to NULL. So `PATCH {"map_face":
+"posterior"}` alone flips a placed device without moving it, and a face
+sent for an unplaced device is simply dropped. Flows through the
+existing device POST / PATCH and the `/patients/{id}/devices` overview —
+no new endpoint. Seed: Refilwe's TLSO moves to the posterior face (her
+AFO stays anterior, so the front/back toggle has one marker on each).
+369 BE tests (5 new), `alembic check` clean, migration round-trips.

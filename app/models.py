@@ -50,6 +50,7 @@ __all__ = [
     "LimbSide",
     "DeviceType",
     "DeviceStatus",
+    "MapFace",
     "CarePathway",
     "MilestoneType",
     "MilestoneStatus",
@@ -455,6 +456,14 @@ class DeviceStatus(enum.Enum):
     retired = "retired"
 
 
+class MapFace(enum.Enum):
+    """Which side of the body-map figure a device's ``map_x`` / ``map_y``
+    are measured on. Only meaningful when a position is set."""
+
+    anterior = "anterior"
+    posterior = "posterior"
+
+
 class Device(TimestampMixin, Base):
     """A prosthetic or orthotic device fitted (or being fitted) for a
     :class:`LimbInvolvement` (requirements Section 5.2). The involvement
@@ -470,7 +479,9 @@ class Device(TimestampMixin, Base):
     figure: fractions in ``[0, 1]`` of the SVG viewBox (top-left origin),
     so they survive a change to the figure's own coordinate space. Set
     together or not at all; a device without them falls back to its
-    involvement's region marker.
+    involvement's region marker. ``map_face`` says which face of the
+    figure those fractions are on (``anterior`` default, ``posterior``
+    for a back placement); it is ``NULL`` exactly when the position is.
     """
 
     __tablename__ = "devices"
@@ -488,9 +499,13 @@ class Device(TimestampMixin, Base):
     )
     mount_location: Mapped[str | None] = mapped_column(String(200))
     # Precise body-map position: viewBox fractions in [0, 1], both or
-    # neither (see the class docstring).
+    # neither (see the class docstring). ``map_face`` is NULL exactly
+    # when the position is.
     map_x: Mapped[float | None] = mapped_column(Float)
     map_y: Mapped[float | None] = mapped_column(Float)
+    map_face: Mapped[MapFace | None] = mapped_column(
+        Enum(MapFace, name="map_face")
+    )
 
     manufacturer: Mapped[str | None] = mapped_column(String(200))
     model: Mapped[str | None] = mapped_column(String(200))

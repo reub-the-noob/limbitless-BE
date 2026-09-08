@@ -33,6 +33,7 @@ from app.models import (
     DeviceStatus,
     DeviceType,
     LimbInvolvement,
+    MapFace,
     MedicalAidMembership,
     MilestoneStatus,
     MilestoneType,
@@ -466,6 +467,15 @@ def list_patient_devices(
     ).all()
 
 
+def _apply_map_face_rule(device: Device) -> None:
+    """Keep ``map_face`` consistent with the position: NULL when there is
+    none, defaulting to ``anterior`` when a position is set without one."""
+    if device.map_x is None or device.map_y is None:
+        device.map_face = None
+    elif device.map_face is None:
+        device.map_face = MapFace.anterior
+
+
 def create_device(
     db: Session,
     *,
@@ -478,6 +488,7 @@ def create_device(
         involvement_id=involvement_id,
         replaces_device_id=replaces_device_id,
     )
+    _apply_map_face_rule(device)
     db.add(device)
     db.flush()
     db.refresh(device)
@@ -489,6 +500,7 @@ def update_device(
 ) -> Device:
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(device, field, value)
+    _apply_map_face_rule(device)
     db.flush()
     db.refresh(device)
     return device

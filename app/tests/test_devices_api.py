@@ -347,3 +347,89 @@ def test_device_can_be_created_with_a_position(client, world: World) -> None:
     )
     assert resp.status_code == 201
     assert resp.json()["map_x"] == 0.5 and resp.json()["map_y"] == 0.34
+
+
+# --- body-map face (R-47) -----------------------------------------
+
+
+def test_map_face_defaults_to_anterior_when_a_position_is_set(
+    client, world: World
+) -> None:
+    p, inv = make_patient_with_involvement(client, world)
+    device = create_device(client, world, p["id"], inv["id"]).json()
+    assert device["map_face"] is None
+
+    placed = _patch(
+        client, world, p["id"], inv["id"], device["id"], {"map_x": 0.4, "map_y": 0.6}
+    )
+    assert placed.status_code == 200
+    assert placed.json()["map_face"] == "anterior"
+
+
+def test_map_face_can_be_placed_on_the_posterior_view(client, world: World) -> None:
+    p, inv = make_patient_with_involvement(client, world)
+    created = create_device(
+        client,
+        world,
+        p["id"],
+        inv["id"],
+        map_x=0.5,
+        map_y=0.34,
+        map_face="posterior",
+    )
+    assert created.status_code == 201
+    assert created.json()["map_face"] == "posterior"
+
+    # and it survives the patient-wide overview the body-map reads
+    overview = client.get(
+        f"/patients/{p['id']}/devices", headers=auth(world.clinician_a)
+    ).json()
+    assert overview[0]["map_face"] == "posterior"
+
+
+def test_clearing_the_position_clears_map_face(client, world: World) -> None:
+    p, inv = make_patient_with_involvement(client, world)
+    device = create_device(
+        client,
+        world,
+        p["id"],
+        inv["id"],
+        map_x=0.5,
+        map_y=0.34,
+        map_face="posterior",
+    ).json()
+
+    cleared = _patch(
+        client, world, p["id"], inv["id"], device["id"], {"map_x": None, "map_y": None}
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["map_face"] is None
+
+
+def test_map_face_alone_flips_a_placed_device_without_moving_it(
+    client, world: World
+) -> None:
+    p, inv = make_patient_with_involvement(client, world)
+    device = create_device(
+        client, world, p["id"], inv["id"], map_x=0.5, map_y=0.34
+    ).json()
+    assert device["map_face"] == "anterior"
+
+    flipped = _patch(
+        client, world, p["id"], inv["id"], device["id"], {"map_face": "posterior"}
+    )
+    assert flipped.status_code == 200
+    body = flipped.json()
+    assert body["map_face"] == "posterior"
+    assert body["map_x"] == 0.5 and body["map_y"] == 0.34
+
+
+def test_map_face_without_a_position_is_dropped(client, world: World) -> None:
+    p, inv = make_patient_with_involvement(client, world)
+    device = create_device(client, world, p["id"], inv["id"]).json()
+
+    resp = _patch(
+        client, world, p["id"], inv["id"], device["id"], {"map_face": "posterior"}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["map_face"] is None

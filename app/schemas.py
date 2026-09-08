@@ -19,6 +19,7 @@ from app.models import (
     InvolvementKind,
     InvolvementStatus,
     LimbLossLevel,
+    MapFace,
     MilestoneStatus,
     MilestoneType,
     NotificationType,
@@ -271,9 +272,12 @@ class _DeviceOptionalFields(BaseModel):
     mount_location: str | None = Field(default=None, max_length=200)
     # Precise body-map position: viewBox fractions in [0, 1], both or
     # neither. Sending one without the other is a 422; sending both as
-    # null clears the position.
+    # null clears the position. ``map_face`` picks the figure side; the
+    # server defaults it to anterior whenever a position is set and
+    # forces it back to null whenever the position is cleared.
     map_x: float | None = Field(default=None, ge=0, le=1)
     map_y: float | None = Field(default=None, ge=0, le=1)
+    map_face: MapFace | None = Field(default=None)
     cast_scan_date: date | None = None
     delivery_date: date | None = None
     fitted_date: date | None = None
