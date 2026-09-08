@@ -1,7 +1,9 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import config
+from app import config, scheduler
 from app.routers import (
     account_link,
     admin_audit,
@@ -28,7 +30,16 @@ from app.routers import (
     review,
 )
 
-app = FastAPI(title="Limb-itless API")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    scheduler.start_scheduler()
+    try:
+        yield
+    finally:
+        scheduler.stop_scheduler()
+
+
+app = FastAPI(title="Limb-itless API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

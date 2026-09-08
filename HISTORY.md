@@ -532,3 +532,38 @@ cause tuple (a bare enum is still accepted). 374 BE tests (1 new
 multi-cause round-trip test; `"cause"` fixtures across 4 test files
 updated to `"causes"`), `alembic check` clean, migration round-trips,
 full-stack live-smoked.
+
+---
+
+## Notification maintenance scheduler
+
+### R-50 — a real scheduler for the §5.6 maintenance pass
+R-43/R-44 shipped the milestone-scan + email-dispatch pass but the only
+trigger was a token-gated HTTP endpoint someone had to poke. Now the two
+calls are one entry point — `crud.run_maintenance(db, *, grace_days,
+max_age_days)` (returns the merged `{milestones_due, milestones_overdue,
+emails_sent, emails_failed, emails_skipped}` dict) — reachable three
+ways:
+
+- **`app/scheduler.py`** — an optional in-process `BackgroundScheduler`
+  (APScheduler, new dep), started/stopped from a FastAPI `lifespan`.
+  `MAINTENANCE_INTERVAL_MINUTES` (default `0` = off) sets the cadence;
+  the first tick fires ~10s after boot, then every N minutes. Each tick
+  takes a **Postgres advisory lock** (`pg_try_advisory_lock`) so it is
+  safe to leave on under multiple workers — only one process runs the
+  pass. No-op when disabled or when the DB is not Postgres (the test
+  suite); `_tick` swallows every exception so a bad pass can't kill the
+  scheduler.
+- **`scripts/run_maintenance.py`** — `python -m scripts.run_maintenance`
+  runs one pass and prints the counts as JSON (plain cron / systemd
+  timer path). `main(db=None)` takes an optional session for testing.
+- **`POST /notifications/dispatch-due`** — unchanged, now delegates to
+  `run_maintenance`.
+
+`.env.example` + the README's new "Notification maintenance" section
+document all three. 380 BE tests (6 new: merged-counts shape, endpoint
+still routes through it, the script's `main`, scheduler no-ops when
+disabled / non-Postgres, `_tick` never raises). No model change.
+Live-smoked: `scripts.run_maintenance` raised 8 due + 5 overdue and sent
+13 emails off the seed; the scheduler starts, ticks once, and stops
+cleanly with `MAINTENANCE_INTERVAL_MINUTES=1`.

@@ -45,3 +45,11 @@ EMAIL_DISPATCH_MAX_AGE_DAYS = int(os.getenv("EMAIL_DISPATCH_MAX_AGE_DAYS", "7"))
 # maintenance pass raises a "milestone overdue" notification (a "due"
 # one goes out as soon as the target date passes).
 MILESTONE_OVERDUE_GRACE_DAYS = int(os.getenv("MILESTONE_OVERDUE_GRACE_DAYS", "7"))
+
+# In-process scheduler (app/scheduler.py): run the maintenance pass every
+# N minutes while the API is up. 0 (default) disables it - use the
+# token-gated POST /notifications/dispatch-due endpoint or the
+# `python -m scripts.run_maintenance` one-shot from an external cron
+# instead. Safe to leave on under multiple workers: a Postgres advisory
+# lock means only one process runs each tick.
+MAINTENANCE_INTERVAL_MINUTES = int(os.getenv("MAINTENANCE_INTERVAL_MINUTES", "0"))

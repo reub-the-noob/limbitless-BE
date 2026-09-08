@@ -4,4 +4,5 @@ alembic
 psycopg[binary]
 pyjwt
 bcrypt
+apscheduler
 pytest

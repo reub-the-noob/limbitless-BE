@@ -128,3 +128,19 @@ Each entry stores the actor, action (`read` / `create` / `update` /
 `delete`), `entity_type`, `entity_id`, practice, and timestamp. The table
 is append-only. Patient-data endpoints land in Phase 1, so this is a
 contract for that work rather than something wired to an endpoint yet.
+
+## Notification maintenance
+
+Time-based notifications (appointment reminders, milestone due / overdue)
+and email delivery run from one idempotent pass — `crud.run_maintenance`.
+Trigger it whichever way suits the deployment:
+
+- **In-process scheduler** — set `MAINTENANCE_INTERVAL_MINUTES` > 0 and
+  the API runs the pass on a background thread every N minutes for as
+  long as it is up. Safe under multiple workers (a Postgres advisory
+  lock means one pass per tick). Disabled by default.
+- **Cron / systemd timer** — `python -m scripts.run_maintenance` runs
+  one pass and prints the counts as JSON.
+- **HTTP** — `POST /notifications/dispatch-due` with the
+  `X-Dispatch-Token` header (set `NOTIFICATIONS_DISPATCH_TOKEN`); for
+  when the DB is only reachable through the app.

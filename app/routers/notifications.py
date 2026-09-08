@@ -108,16 +108,9 @@ def dispatch_due(
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED, detail="Invalid dispatch token"
         )
-    milestones = crud.scan_milestone_notifications(
-        db, grace_days=config.MILESTONE_OVERDUE_GRACE_DAYS
+    result = crud.run_maintenance(
+        db,
+        grace_days=config.MILESTONE_OVERDUE_GRACE_DAYS,
+        max_age_days=config.EMAIL_DISPATCH_MAX_AGE_DAYS,
     )
-    emails = crud.dispatch_due_emails(
-        db, max_age_days=config.EMAIL_DISPATCH_MAX_AGE_DAYS
-    )
-    return schemas.NotificationMaintenanceResult(
-        milestones_due=milestones["due"],
-        milestones_overdue=milestones["overdue"],
-        emails_sent=emails["sent"],
-        emails_failed=emails["failed"],
-        emails_skipped=emails["skipped"],
-    )
+    return schemas.NotificationMaintenanceResult(**result)
